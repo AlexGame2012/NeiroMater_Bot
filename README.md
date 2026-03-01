@@ -160,4 +160,4 @@ Pillow
   <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=100&section=footer"/>
 </div>
 
-## © 2026 AlexStudio Code. Все права защищены.
+## © 2026 AlexStudio Code. All rights reserved.
