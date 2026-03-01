@@ -80,32 +80,57 @@ def generate_image(prompt):
             "authorization": f"Bearer {LEONARDO_API_KEY}"
         }
         
+        # Улучшенные параметры для генерации
         payload = {
-            "height": 512,
-            "width": 512,
-            "modelId": "6bef9f1b-29cb-40c7-b9df-32b51c1f67d3",
-            "prompt": english_prompt
+            "height": 1024,  # Увеличил размер для лучшего качества
+            "width": 1024,
+            "modelId": "6bef9f1b-29cb-40c7-b9df-32b51c1f67d3",  # Phoenix модель
+            "prompt": english_prompt,
+            "num_images": 1,
+            "presetStyle": "DYNAMIC",  # Добавил стиль
+            "contrast": 3.5,  # Добавил контраст
+            "public": False,  # Приватная генерация
+            "scheduler": "DPMSolverMultistepScheduler",  # Улучшенный scheduler
+            "guidance_scale": 7,  # Контроль следования промпту
+            "num_inference_steps": 30  # Больше шагов = лучше качество
         }
         
+        # Отправка запроса на генерацию
         response = requests.post(url, json=payload, headers=headers)
         if response.status_code != 200:
+            print(f"Ошибка при создании задачи: {response.status_code}")
+            print(f"Ответ: {response.text}")
             return None
             
-        generation_id = response.json()['sdGenerationJob']['generationId']
+        generation_data = response.json()
+        generation_id = generation_data['sdGenerationJob']['generationId']
         
-        time.sleep(20)
-        
-        result_url = f"https://cloud.leonardo.ai/api/rest/v1/generations/{generation_id}"
-        response = requests.get(result_url, headers=headers)
-        
-        if response.status_code != 200:
-            return None
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            time.sleep(5) 
             
-        data = response.json()
-        image_url = data["generations_by_pk"]["generated_images"][0]["url"]
+            result_url = f"https://cloud.leonardo.ai/api/rest/v1/generations/{generation_id}"
+            response = requests.get(result_url, headers=headers)
+            
+            if response.status_code != 200:
+                continue
+                
+            data = response.json()
+            
+            if data["generations_by_pk"]["status"] == "COMPLETE":
+                if data["generations_by_pk"]["generated_images"]:
+                    image_url = data["generations_by_pk"]["generated_images"][0]["url"]
+                    image_data = requests.get(image_url).content
+                    return image_data
+            elif data["generations_by_pk"]["status"] == "FAILED":
+                print("Генерация не удалась")
+                return None
         
-        image_data = requests.get(image_url).content
-        return image_data
+        print("Таймаут ожидания генерации")
+        return None
         
-    except Exception:
+    except Exception as e:
+        print(f"Ошибка в generate_image: {e}")
+        import traceback
+        traceback.print_exc()
         return None
